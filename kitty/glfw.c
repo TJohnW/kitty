@@ -15,6 +15,8 @@ extern void cocoa_set_titlebar_color(void *w);
 #error "glfw has too many keys, you should increase MAX_KEY_COUNT"
 #endif
 
+static double current_timeout = -1.0;
+
 static GLFWcursor *standard_cursor = NULL, *click_cursor = NULL, *arrow_cursor = NULL;
 
 void
@@ -84,6 +86,9 @@ framebuffer_size_callback(GLFWwindow *w, int width, int height) {
         OSWindow *window = global_state.callback_os_window;
         window->has_pending_resizes = true; global_state.has_pending_resizes = true;
         window->last_resize_event_at = monotonic();
+        if (current_timeout == -1) {
+            wakeup_main_loop();
+        }
     } else log_error("Ignoring resize request for tiny size: %dx%d", width, height);
     global_state.callback_os_window = NULL;
 }
@@ -490,6 +495,8 @@ glfw_wait_events(PyObject UNUSED *self, PyObject *args) {
         time = PyFloat_AsDouble(PyTuple_GET_ITEM(args, 0));
         if (PyErr_Occurred()) PyErr_Clear();
     }
+    
+    current_timeout = time;
     if (time < 0) glfwWaitEvents();
     else glfwWaitEventsTimeout(time);
     Py_RETURN_NONE;
@@ -630,6 +637,7 @@ swap_window_buffers(OSWindow *w) {
 
 void
 event_loop_wait(double timeout) {
+    current_timeout = timeout;
     if (timeout < 0) glfwWaitEvents();
     else if (timeout > 0) glfwWaitEventsTimeout(timeout);
 }
